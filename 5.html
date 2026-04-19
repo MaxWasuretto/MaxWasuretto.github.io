@@ -207,6 +207,45 @@
       color: var(--muted);
       margin: 0;
     }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(44, 39, 32, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 999;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal {
+      width: min(560px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 14px 40px rgba(44, 39, 32, 0.18);
+      padding: 16px;
+    }
+    .modal h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    .modal .sub { margin: 0 0 12px; }
+    .modal .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .modal .grid .full { grid-column: 1 / -1; }
+    .modal .row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .modal small { color: var(--muted); }
+    .modal input[type="text"], .modal input[type="password"] { margin-bottom: 0; }
     .edit-user-form {
       margin-top: 8px;
       padding: 12px;
@@ -368,9 +407,11 @@
       <div class="persist-bar">
         <button type="button" class="btn btn-secondary" id="btn-save-local">Сохранить в браузер</button>
         <button type="button" class="btn btn-secondary" id="btn-export-html">Скачать HTML с данными</button>
+        <button type="button" class="btn btn-admin" id="btn-save-github">Сохранить на GitHub</button>
         <p class="persist-note">
           «В браузер» — данные в этом браузере на этом компьютере (включая изменения пользователей админом).
-          «Скачать HTML» — файл со вшитым состоянием; подмените им <code>3.html</code> вручную.
+          «Скачать HTML» — файл со вшитым состоянием; подмените им <code>5.html</code> вручную.
+          «Сохранить на GitHub» — сделает коммит в ваш репозиторий (GitHub Pages обновится, телефон увидит изменения после обновления страницы).
         </p>
       </div>
 
@@ -422,6 +463,45 @@
   </div>
 
   <script type="text/plain" id="embedded-app-state-b64"></script>
+
+  <div class="modal-backdrop" id="gh-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gh-title">
+      <h3 id="gh-title">Сохранение на GitHub (GitHub Pages)</h3>
+      <p class="sub">Страница сделает коммит обновлённого `5.html` через GitHub API.</p>
+      <div class="hint" style="margin: 0 0 12px;">
+        <strong>Важно:</strong> токен даёт доступ к вашему GitHub. Создайте Fine-grained token с доступом только к одному репо и правом <code>Contents: Read/Write</code>.
+        Мы сохраним токен в localStorage этого браузера.
+      </div>
+      <div class="grid">
+        <div>
+          <label for="gh-owner">Owner (логин)</label>
+          <input id="gh-owner" type="text" placeholder="например: max123" />
+        </div>
+        <div>
+          <label for="gh-repo">Repo</label>
+          <input id="gh-repo" type="text" placeholder="например: web-beb" />
+        </div>
+        <div>
+          <label for="gh-branch">Branch</label>
+          <input id="gh-branch" type="text" value="main" />
+        </div>
+        <div>
+          <label for="gh-path">File path</label>
+          <input id="gh-path" type="text" value="5.html" />
+        </div>
+        <div class="full">
+          <label for="gh-token">Token</label>
+          <input id="gh-token" type="password" placeholder="github_pat_..." />
+          <small>Не используйте токен с доступом ко всем репозиториям.</small>
+        </div>
+      </div>
+      <div id="gh-status" class="log" style="min-height: 0; margin-top: 12px;">Заполните поля и нажмите «Сохранить».</div>
+      <div class="row">
+        <button type="button" class="btn btn-secondary" id="gh-cancel">Отмена</button>
+        <button type="button" class="btn btn-admin" id="gh-save">Сохранить</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     (function () {
@@ -544,6 +624,14 @@
           el.type = "text/plain";
           el.id = "embedded-app-state-b64";
           document.body.appendChild(el);
+        }
+        if (!state) {
+          el.textContent = "";
+          return;
+        }
+        if (typeof state === "string") {
+          el.textContent = state;
+          return;
         }
         el.textContent = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
       }
@@ -786,11 +874,143 @@
         const blob = new Blob([html], { type: "text/html;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "3-saved.html";
+        a.download = "5-saved.html";
         document.body.appendChild(a);
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      });
+
+      // --- GitHub save (commit 5.html via API) ---
+      const GH_CFG_KEY = "gh_save_cfg_v1";
+      const ghModal = document.getElementById("gh-modal");
+      const ghOwner = document.getElementById("gh-owner");
+      const ghRepo = document.getElementById("gh-repo");
+      const ghBranch = document.getElementById("gh-branch");
+      const ghPath = document.getElementById("gh-path");
+      const ghToken = document.getElementById("gh-token");
+      const ghStatus = document.getElementById("gh-status");
+
+      function setGhStatus(text) {
+        if (ghStatus) ghStatus.textContent = text;
+      }
+
+      function openGhModal() {
+        try {
+          const cfg = JSON.parse(localStorage.getItem(GH_CFG_KEY) || "null");
+          if (cfg && typeof cfg === "object") {
+            if (ghOwner) ghOwner.value = cfg.owner || "";
+            if (ghRepo) ghRepo.value = cfg.repo || "";
+            if (ghBranch) ghBranch.value = cfg.branch || "main";
+            if (ghPath) ghPath.value = cfg.path || "5.html";
+            if (ghToken) ghToken.value = cfg.token || "";
+          }
+        } catch (e) {}
+        setGhStatus("Заполните поля и нажмите «Сохранить».");
+        ghModal.classList.add("visible");
+      }
+
+      function closeGhModal() {
+        ghModal.classList.remove("visible");
+      }
+
+      async function githubApi(url, token, options = {}) {
+        const headers = Object.assign(
+          {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": "Bearer " + token,
+          },
+          options.headers || {}
+        );
+        const res = await fetch(url, Object.assign({}, options, { headers }));
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (e) { data = { raw: text }; }
+        if (!res.ok) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : (res.status + " " + res.statusText);
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      function toBase64Utf8(str) {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+
+      function buildHtmlForSave(fullExport) {
+        // Вставим актуальное состояние в DOM, снимем outerHTML, затем вернём как было
+        const prev = getEmbeddedState();
+        setEmbeddedB64InDom(fullExport);
+        const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        // восстановление (чтобы в текущей вкладке не менять состояние неожиданно)
+        if (prev) setEmbeddedB64InDom(prev);
+        else setEmbeddedB64InDom("");
+        return html;
+      }
+
+      async function saveToGitHub() {
+        const owner = (ghOwner.value || "").trim();
+        const repo = (ghRepo.value || "").trim();
+        const branch = (ghBranch.value || "main").trim();
+        const path = (ghPath.value || "5.html").trim();
+        const token = (ghToken.value || "").trim();
+
+        if (!owner || !repo || !branch || !path || !token) {
+          setGhStatus("Заполните owner/repo/branch/path/token.");
+          return;
+        }
+
+        // сохранить конфиг
+        try {
+          localStorage.setItem(GH_CFG_KEY, JSON.stringify({ owner, repo, branch, path, token }));
+        } catch (e) {}
+
+        snapshotVisiblePanelsToState();
+        persistLocalStorage();
+        persistDynamicUsers();
+
+        const fullExport = { appState, dynamicUsers };
+        const html = buildHtmlForSave(fullExport);
+        const content = toBase64Utf8(html);
+
+        setGhStatus("Получаю текущую версию файла в репозитории...");
+        const apiBase = "https://api.github.com";
+        const fileUrl = `${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
+
+        let sha = null;
+        try {
+          const existing = await githubApi(fileUrl + `?ref=${encodeURIComponent(branch)}`, token, { method: "GET" });
+          sha = existing && existing.sha ? existing.sha : null;
+        } catch (e) {
+          // если файла ещё нет — sha останется null, создадим новый
+          sha = null;
+        }
+
+        setGhStatus("Делаю коммит в GitHub...");
+        const body = {
+          message: `Update ${path} (save from web UI)`,
+          content,
+          branch,
+        };
+        if (sha) body.sha = sha;
+
+        await githubApi(fileUrl, token, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        setGhStatus("Готово. GitHub Pages обновится через ~30–120 секунд. На телефоне обновите страницу (может помочь инкогнито из-за кеша).");
+      }
+
+      document.getElementById("btn-save-github").addEventListener("click", openGhModal);
+      document.getElementById("gh-cancel").addEventListener("click", closeGhModal);
+      document.getElementById("gh-save").addEventListener("click", function () {
+        saveToGitHub().catch((e) => setGhStatus("Ошибка: " + e.message));
+      });
+      ghModal.addEventListener("click", function (e) {
+        if (e.target === ghModal) closeGhModal();
       });
 
       loginForm.addEventListener("submit", function (e) {
