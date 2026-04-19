@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Личный кабинет — Админ управление пользователями</title>
+  <style>
+    :root {
+      --bg: #f3efe8;
+      --surface: #fffefb;
+      --border: #e0d8cc;
+      --text: #2c2720;
+      --muted: #6e665c;
+      --accent: #9a7b4f;
+      --accent-dim: #7a6140;
+      --success: #4a7c59;
+      --danger: #c44f4f;
+      --admin: #a67c00;
+      --focus-ring: rgba(154, 123, 79, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(165deg, #faf8f4 0%, var(--bg) 45%, #ebe4d9 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 8px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 12px rgba(44, 39, 32, 0.06);
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="email"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--focus-ring);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fffefb;
+      width: 100%;
+    }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger:hover { background: rgba(196, 79, 79, 0.1); }
+    .btn-admin { background: rgba(166, 124, 0, 0.12); color: var(--admin); border: 1px solid rgba(166, 124, 0, 0.45); }
+    .btn-admin:hover { background: rgba(166, 124, 0, 0.2); }
+    .btn-success { background: rgba(74, 124, 89, 0.12); color: var(--success); border: 1px solid rgba(74, 124, 89, 0.45); }
+    .btn-success:hover { background: rgba(74, 124, 89, 0.2); }
+    .hint {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(154, 123, 79, 0.1);
+      border: 1px solid rgba(224, 216, 204, 0.9);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .hint code { color: var(--accent); }
+    .error {
+      display: none;
+      margin-bottom: 16px;
+      padding: 10px 12px;
+      background: rgba(196, 79, 79, 0.08);
+      border: 1px solid rgba(196, 79, 79, 0.45);
+      border-radius: 8px;
+      color: #a33;
+      font-size: 0.9rem;
+    }
+    .error.visible { display: block; }
+    #cabinet { display: none; }
+    #cabinet.visible { display: block; }
+    #login-screen { display: block; }
+    #login-screen.hidden { display: none; }
+    .cabinet-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-user { background: rgba(154, 123, 79, 0.18); color: var(--accent-dim); }
+    .badge-admin { background: rgba(166, 124, 0, 0.15); color: #7a5d00; }
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .actions .btn { width: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th { color: var(--muted); font-weight: 500; }
+    .hidden { display: none !important; }
+    .profile-grid {
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+    .profile-grid dt { color: var(--muted); font-weight: 500; }
+    .profile-grid dd { margin: 0 0 12px; }
+    .log {
+      margin-top: 16px;
+      padding: 12px;
+      background: #f0ebe3;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 48px;
+    }
+    .persist-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .persist-bar .btn { width: auto; font-size: 0.85rem; padding: 8px 12px; }
+    .persist-note {
+      flex: 1 1 100%;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    .edit-user-form {
+      margin-top: 8px;
+      padding: 12px;
+      background: #faf8f4;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .edit-user-form input {
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      padding: 6px 10px;
+    }
+    .edit-user-form .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+    .admin-user-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .admin-user-actions .btn-edit {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.1s;
+    }
+    .admin-user-actions .btn-edit:hover {
+      background: rgba(154, 123, 79, 0.1);
+    }
+    .user-email-display {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* Адаптация под смартфоны */
+    @media (max-width: 640px) {
+      .wrap {
+        padding: 14px 12px 28px;
+      }
+      .card {
+        padding: 16px;
+        border-radius: 14px;
+      }
+      h1 {
+        font-size: 1.25rem;
+      }
+      .sub {
+        margin-bottom: 18px;
+      }
+      .cabinet-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .cabinet-header > div {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .actions {
+        gap: 8px;
+      }
+      .actions .btn {
+        width: 100%;
+      }
+      .persist-bar .btn {
+        width: 100%;
+      }
+      /* Таблица → карточки */
+      #admin-users-table {
+        min-width: 0 !important;
+      }
+      #admin-users-table thead {
+        display: none;
+      }
+      #admin-users-table,
+      #admin-users-table tbody,
+      #admin-users-table tr,
+      #admin-users-table td {
+        display: block;
+        width: 100%;
+      }
+      #admin-users-table tr {
+        background: #faf8f4;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 10px 12px;
+        margin-bottom: 10px;
+      }
+      #admin-users-table td {
+        border-bottom: none;
+        padding: 8px 6px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #admin-users-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-weight: 600;
+        flex: 0 0 auto;
+        max-width: 45%;
+      }
+      #admin-users-table td > * {
+        text-align: right;
+        max-width: 55%;
+        overflow-wrap: anywhere;
+      }
+      #admin-users-table td.admin-user-actions {
+        justify-content: flex-end;
+      }
+      .admin-user-actions .btn-edit {
+        width: 100%;
+        justify-content: center;
+      }
+      .edit-user-form input {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Личный кабинет</h1>
+    <p class="sub">Вход по логину и паролю. Администратор может редактировать данные пользователей (email, имя).</p>
+
+    <div id="login-screen" class="card">
+      <div id="login-error" class="error">Неверный логин или пароль.</div>
+      <form id="login-form" autocomplete="username">
+        <label for="username">Логин</label>
+        <input id="username" name="username" type="text" required placeholder="user или admin" />
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" required placeholder="Пароль" />
+        <button type="submit" class="btn btn-primary">Войти</button>
+      </form>
+      <div class="hint">
+        Демо: обычный пользователь — <code>user</code> / <code>user123</code>;
+        администратор — <code>admin</code> / <code>admin123</code>.
+        <br /><br />
+        <strong>Новая функция:</strong> Администратор может изменять email и отображаемое имя любого пользователя.
+        Изменения сохраняются в localStorage / экспорт HTML.
+      </div>
+    </div>
+
+    <div id="cabinet" class="card">
+      <div class="cabinet-header">
+        <div>
+          <strong id="cabinet-login"></strong>
+          <span id="cabinet-badge" class="badge"></span>
+        </div>
+        <button type="button" class="btn btn-secondary" id="logout-btn">Выйти</button>
+      </div>
+      <div class="persist-bar">
+        <button type="button" class="btn btn-secondary" id="btn-save-local">Сохранить в браузер</button>
+        <button type="button" class="btn btn-secondary" id="btn-export-html">Скачать HTML с данными</button>
+        <p class="persist-note">
+          «В браузер» — данные в этом браузере на этом компьютере (включая изменения пользователей админом).
+          «Скачать HTML» — файл со вшитым состоянием; подмените им <code>3.html</code> вручную.
+        </p>
+      </div>
+
+      <!-- Контент обычного пользователя -->
+      <div id="panel-user" class="hidden">
+        <h2 class="section-title">Ваш профиль</h2>
+        <dl class="profile-grid">
+          <dt>Логин</dt>
+          <dd id="user-login-display"></dd>
+          <dt>Отображаемое имя</dt>
+          <dd><span id="user-displayname"></span></dd>
+          <dt>Email</dt>
+          <dd style="margin-bottom: 0;">
+            <input id="user-email" type="email" class="user-email-input" placeholder="email@example.org" style="width: 100%; max-width: 320px; margin-bottom: 0;" />
+          </dd>
+          <dt>Статус</dt>
+          <dd>Активен</dd>
+        </dl>
+        <h2 class="section-title">Доступные действия</h2>
+        <p class="sub" style="margin-bottom: 0;">Для роли «Пользователь» доступны только операции с собственными данными.</p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="user-action-profile">Редактировать профиль</button>
+          <button type="button" class="btn btn-secondary" id="user-action-orders">Мои заявки</button>
+        </div>
+        <div id="user-log" class="log">Выберите действие выше.</div>
+      </div>
+
+      <!-- Контент администратора -->
+      <div id="panel-admin" class="hidden">
+        <h2 class="section-title">Панель администратора</h2>
+        <p class="sub" style="margin-bottom: 16px;">Управление пользователями и системой. <strong>Нажмите «✎ Изменить»</strong> у любого пользователя, чтобы отредактировать email или имя.</p>
+        <div class="actions" style="margin-top: 0; margin-bottom: 20px;">
+          <button type="button" class="btn btn-admin" id="admin-add-user">Добавить пользователя (демо)</button>
+          <button type="button" class="btn btn-admin" id="admin-settings">Настройки системы</button>
+          <button type="button" class="btn btn-danger" id="admin-clear-sessions">Сбросить сессии (демо)</button>
+        </div>
+        <h2 class="section-title">Пользователи системы</h2>
+        <div style="overflow-x: auto;">
+          <table id="admin-users-table" style="min-width: 500px;">
+            <thead>
+              <tr><th>Логин</th><th>Роль</th><th>Отображаемое имя</th><th>Email</th><th>Действия</th></tr>
+            </thead>
+            <tbody id="admin-users-body"></tbody>
+          </table>
+        </div>
+        <div id="admin-log" class="log">Действия администратора отображаются здесь.</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/plain" id="embedded-app-state-b64"></script>
+
+  <script>
+    (function () {
+      // ---- БАЗОВЫЕ ПОЛЬЗОВАТЕЛИ (ядро) ----
+      const CORE_USERS = {
+        user: { password: "user123", role: "user", displayName: "Иван Пользователь", email: "ivan@example.com" },
+        admin: { password: "admin123", role: "admin", displayName: "А. Администратор", email: "admin@system.local" },
+      };
+      // дополнительные демо-пользователи (не редактируются из базы, но будут в списке)
+      const EXTRA_USERS = {
+        guest_demo: { password: "", role: "user", displayName: "Гость Демо", email: "guest@demo.org", locked: true }
+      };
+
+      // Глобальное состояние: все пользователи (расширяемые админом)
+      let dynamicUsers = {};
+
+      function initDynamicUsers() {
+        const stored = localStorage.getItem("cabinet_dynamic_users_v1");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === "object") {
+              dynamicUsers = parsed;
+              // убедимся, что core пользователи есть в dynamic (но не перезаписываем пароли/роли из ядра)
+              for (const [login, coreData] of Object.entries(CORE_USERS)) {
+                if (!dynamicUsers[login]) {
+                  dynamicUsers[login] = { ...coreData };
+                } else {
+                  // защита: пароль и роль не могут быть изменены через админку (только displayName и email)
+                  dynamicUsers[login].password = coreData.password;
+                  dynamicUsers[login].role = coreData.role;
+                }
+              }
+              return;
+            }
+          } catch(e) {}
+        }
+        // инициализация по умолчанию
+        dynamicUsers = {};
+        for (const [login, coreData] of Object.entries(CORE_USERS)) {
+          dynamicUsers[login] = { ...coreData };
+        }
+        for (const [login, extra] of Object.entries(EXTRA_USERS)) {
+          if (!dynamicUsers[login]) {
+            dynamicUsers[login] = { ...extra };
+          }
+        }
+      }
+
+      function persistDynamicUsers() {
+        try {
+          localStorage.setItem("cabinet_dynamic_users_v1", JSON.stringify(dynamicUsers));
+        } catch(e) {}
+      }
+
+      // Получить данные пользователя для отображения (без пароля)
+      function getUserPublic(login) {
+        const u = dynamicUsers[login];
+        if (!u) return null;
+        return {
+          login: login,
+          role: u.role,
+          displayName: u.displayName || login,
+          email: u.email || "",
+          locked: u.locked || false
+        };
+      }
+
+      function getAllUsersForAdmin() {
+        const list = [];
+        for (const login in dynamicUsers) {
+          const u = dynamicUsers[login];
+          list.push({
+            login: login,
+            role: u.role,
+            displayName: u.displayName || login,
+            email: u.email || "",
+            locked: u.locked || false
+          });
+        }
+        // сортировка: админы выше, потом остальные
+        list.sort((a,b) => {
+          if (a.role === "admin" && b.role !== "admin") return -1;
+          if (a.role !== "admin" && b.role === "admin") return 1;
+          return a.login.localeCompare(b.login);
+        });
+        return list;
+      }
+
+      function updateUserData(login, newData) {
+        if (!dynamicUsers[login]) return false;
+        // Разрешено менять только displayName и email
+        if (newData.displayName !== undefined) dynamicUsers[login].displayName = newData.displayName;
+        if (newData.email !== undefined) dynamicUsers[login].email = newData.email;
+        persistDynamicUsers();
+        return true;
+      }
+
+      // ---- ОСТАЛЬНОЕ СОСТОЯНИЕ ПРИЛОЖЕНИЯ (логи, email текущего user) ----
+      const STORAGE_KEY = "cabinet_app_state_v1";
+      function defaultAppState() {
+        return { v: 1, userEmail: "", userLog: "", adminLog: "" };
+      }
+
+      function getEmbeddedState() {
+        const el = document.getElementById("embedded-app-state-b64");
+        if (!el) return null;
+        const raw = el.textContent.replace(/\s/g, "");
+        if (!raw) return null;
+        try {
+          const json = decodeURIComponent(escape(atob(raw)));
+          return JSON.parse(json);
+        } catch (e) { return null; }
+      }
+
+      function setEmbeddedB64InDom(state) {
+        let el = document.getElementById("embedded-app-state-b64");
+        if (!el) {
+          el = document.createElement("script");
+          el.type = "text/plain";
+          el.id = "embedded-app-state-b64";
+          document.body.appendChild(el);
+        }
+        el.textContent = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+      }
+
+      function loadMergedState() {
+        const embedded = getEmbeddedState();
+        let fromLs = null;
+        try {
+          fromLs = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        } catch(e) {}
+        const base = defaultAppState();
+        if (embedded && typeof embedded === "object") Object.assign(base, embedded);
+        if (fromLs && typeof fromLs === "object") Object.assign(base, fromLs);
+        return base;
+      }
+
+      let appState = loadMergedState();
+
+      function persistLocalStorage() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        } catch(e) { alert("Не удалось записать в localStorage."); }
+      }
+
+      // синхронизация email пользователя из appState в UI
+      function applyAppStateToInputs(currentUserLogin) {
+        if (currentUserLogin && dynamicUsers[currentUserLogin]) {
+          const emailField = document.getElementById("user-email");
+          if (emailField && session && session.login === currentUserLogin) {
+            const storedEmail = dynamicUsers[currentUserLogin].email || "";
+            emailField.value = storedEmail;
+            // также синхронизируем appState.userEmail для совместимости
+            appState.userEmail = storedEmail;
+          }
+        }
+      }
+
+      let session = null;
+
+      const loginScreen = document.getElementById("login-screen");
+      const cabinet = document.getElementById("cabinet");
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+      const panelUser = document.getElementById("panel-user");
+      const panelAdmin = document.getElementById("panel-admin");
+      const cabinetLogin = document.getElementById("cabinet-login");
+      const cabinetBadge = document.getElementById("cabinet-badge");
+      const userLoginDisplay = document.getElementById("user-login-display");
+      const userLog = document.getElementById("user-log");
+      const adminLog = document.getElementById("admin-log");
+      const adminUsersBody = document.getElementById("admin-users-body");
+      const userEmailInput = document.getElementById("user-email");
+      const userDisplaynameSpan = document.getElementById("user-displayname");
+
+      function renderAdminTable() {
+        if (!adminUsersBody) return;
+        const users = getAllUsersForAdmin();
+        adminUsersBody.innerHTML = "";
+        for (const u of users) {
+          const tr = document.createElement("tr");
+          tr.dataset.login = u.login;
+          // ячейки
+          const tdLogin = document.createElement("td"); tdLogin.textContent = u.login; tdLogin.setAttribute("data-label", "Логин");
+          const tdRole = document.createElement("td"); tdRole.textContent = u.role === "admin" ? "Администратор" : "Пользователь"; tdRole.setAttribute("data-label", "Роль");
+          const tdDisplayName = document.createElement("td");
+          tdDisplayName.innerHTML = `<span class="user-displayname-val" data-login="${u.login}">${escapeHtml(u.displayName)}</span>`;
+          tdDisplayName.setAttribute("data-label", "Имя");
+          const tdEmail = document.createElement("td");
+          tdEmail.innerHTML = `<span class="user-email-val" data-login="${u.login}">${escapeHtml(u.email || '—')}</span>`;
+          tdEmail.setAttribute("data-label", "Email");
+          const tdActions = document.createElement("td");
+          tdActions.className = "admin-user-actions";
+          tdActions.setAttribute("data-label", "Действия");
+          const editBtn = document.createElement("button");
+          editBtn.textContent = "✎ Изменить";
+          editBtn.className = "btn-edit";
+          editBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            showEditUserForm(u.login, tdActions.parentElement);
+          });
+          tdActions.appendChild(editBtn);
+          tr.appendChild(tdLogin);
+          tr.appendChild(tdRole);
+          tr.appendChild(tdDisplayName);
+          tr.appendChild(tdEmail);
+          tr.appendChild(tdActions);
+          adminUsersBody.appendChild(tr);
+        }
+      }
+
+      function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+      function showEditUserForm(login, rowElement) {
+        // Удаляем старую форму, если она есть в этой строке
+        const existingForm = rowElement.querySelector(".edit-user-form");
+        if (existingForm) existingForm.remove();
+
+        const user = dynamicUsers[login];
+        if (!user) return;
+        const currentName = user.displayName || login;
+        const currentEmail = user.email || "";
+
+        const formDiv = document.createElement("div");
+        formDiv.className = "edit-user-form";
+        formDiv.innerHTML = `
+          <div style="margin-bottom: 8px;"><strong>Редактирование: ${login}</strong></div>
+          <label>Отображаемое имя</label>
+          <input type="text" id="edit-displayname-${login}" value="${escapeHtml(currentName)}" placeholder="Имя пользователя" />
+          <label>Email</label>
+          <input type="email" id="edit-email-${login}" value="${escapeHtml(currentEmail)}" placeholder="email@example.com" />
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="btn-sm btn-success" data-action="save">Сохранить</button>
+            <button class="btn-sm btn-secondary" data-action="cancel">Отмена</button>
+          </div>
+        `;
+        // Вставка после ячейки с действиями (последняя ячейка)
+        const actionsCell = rowElement.querySelector("td:last-child");
+        if (actionsCell) actionsCell.appendChild(formDiv);
+        else rowElement.appendChild(formDiv);
+
+        const saveBtn = formDiv.querySelector('[data-action="save"]');
+        const cancelBtn = formDiv.querySelector('[data-action="cancel"]');
+        saveBtn.addEventListener("click", () => {
+          const newName = document.getElementById(`edit-displayname-${login}`).value.trim();
+          const newEmail = document.getElementById(`edit-email-${login}`).value.trim();
+          if (newName === "") {
+            adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Ошибка: имя не может быть пустым.`;
+            if (session?.role === "admin") appState.adminLog = adminLog.textContent;
+            persistLocalStorage();
+            return;
+          }
+          // Обновляем данные
+          const updated = updateUserData(login, { displayName: newName, email: newEmail });
+          if (updated) {
+            adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Администратор изменил данные пользователя ${login}: имя → "${newName}", email → "${newEmail}".`;
+            if (session?.role === "admin") appState.adminLog = adminLog.textContent;
+            persistLocalStorage();
+            // Обновляем таблицу
+            renderAdminTable();
+            // Если изменяемый пользователь — это текущий залогиненный user, то обновляем его отображение в кабинете
+            if (session && session.login === login && session.role === "user") {
+              if (userDisplaynameSpan) userDisplaynameSpan.textContent = newName;
+              if (userEmailInput) userEmailInput.value = newEmail;
+              dynamicUsers[login].email = newEmail;
+              dynamicUsers[login].displayName = newName;
+              persistDynamicUsers();
+            }
+            // Если админ меняет свой собственный профиль (админ может менять себя)
+            if (session && session.login === login && session.role === "admin") {
+              cabinetLogin.textContent = newName + " (" + login + ")";
+            }
+          } else {
+            adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Ошибка: не удалось обновить пользователя.`;
+            if (session?.role === "admin") appState.adminLog = adminLog.textContent;
+            persistLocalStorage();
+          }
+        });
+        cancelBtn.addEventListener("click", () => {
+          formDiv.remove();
+        });
+      }
+
+      function showLogin() {
+        session = null;
+        loginScreen.classList.remove("hidden");
+        cabinet.classList.remove("visible");
+        loginError.classList.remove("visible");
+        loginForm.reset();
+      }
+
+      function showCabinet(login, role, displayName) {
+        session = { login, role, displayName };
+        loginScreen.classList.add("hidden");
+        cabinet.classList.add("visible");
+        loginError.classList.remove("visible");
+        const userDynamic = dynamicUsers[login];
+        const finalDisplay = (userDynamic && userDynamic.displayName) ? userDynamic.displayName : displayName;
+        cabinetLogin.textContent = finalDisplay + " (" + login + ")";
+        panelUser.classList.add("hidden");
+        panelAdmin.classList.add("hidden");
+        if (role === "user") {
+          cabinetBadge.textContent = "Пользователь";
+          cabinetBadge.className = "badge badge-user";
+          panelUser.classList.remove("hidden");
+          userLoginDisplay.textContent = login;
+          if (userDisplaynameSpan) userDisplaynameSpan.textContent = finalDisplay;
+          if (userEmailInput) {
+            const emailVal = (dynamicUsers[login] && dynamicUsers[login].email) ? dynamicUsers[login].email : "";
+            userEmailInput.value = emailVal;
+            appState.userEmail = emailVal;
+          }
+          userLog.textContent = appState.userLog && appState.userLog.trim() ? appState.userLog : "Выберите действие выше.";
+        } else {
+          cabinetBadge.textContent = "Администратор";
+          cabinetBadge.className = "badge badge-admin";
+          panelAdmin.classList.remove("hidden");
+          renderAdminTable();
+          adminLog.textContent = appState.adminLog && appState.adminLog.trim() ? appState.adminLog : "Действия администратора отображаются здесь.";
+        }
+      }
+
+      // Обработчики
+      if (userEmailInput) {
+        userEmailInput.addEventListener("input", function () {
+          if (session && session.role === "user" && dynamicUsers[session.login]) {
+            dynamicUsers[session.login].email = userEmailInput.value;
+            persistDynamicUsers();
+            appState.userEmail = userEmailInput.value;
+            persistLocalStorage();
+          }
+        });
+      }
+
+      function snapshotVisiblePanelsToState() {
+        if (session && session.role === "user" && !panelUser.classList.contains("hidden")) {
+          appState.userLog = userLog.textContent;
+          if (userEmailInput) appState.userEmail = userEmailInput.value;
+        }
+        if (session && session.role === "admin" && !panelAdmin.classList.contains("hidden")) {
+          appState.adminLog = adminLog.textContent;
+        }
+      }
+
+      document.getElementById("btn-save-local").addEventListener("click", function () {
+        snapshotVisiblePanelsToState();
+        persistLocalStorage();
+        persistDynamicUsers();
+        alert("Сохранено в localStorage этого браузера (включая изменения пользователей).");
+      });
+
+      document.getElementById("btn-export-html").addEventListener("click", function () {
+        snapshotVisiblePanelsToState();
+        // для экспорта также сохраняем dynamicUsers в отдельный блоб? но они и так в localStorage; для экспорта сохраним appState + dynamicUsers в глобальный стейт.
+        const fullExport = {
+          appState: appState,
+          dynamicUsers: dynamicUsers
+        };
+        setEmbeddedB64InDom(fullExport);
+        const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "3-saved.html";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      });
+
+      loginForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const login = document.getElementById("username").value.trim().toLowerCase();
+        const password = document.getElementById("password").value;
+        const u = dynamicUsers[login];
+        if (!u || u.password !== password || u.locked) {
+          loginError.classList.add("visible");
+          return;
+        }
+        showCabinet(login, u.role, u.displayName);
+      });
+
+      document.getElementById("logout-btn").addEventListener("click", showLogin);
+
+      document.getElementById("user-action-profile").addEventListener("click", function () {
+        userLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Форма редактирования профиля (демо). Вы можете изменить email выше.`;
+        appState.userLog = userLog.textContent;
+        persistLocalStorage();
+      });
+      document.getElementById("user-action-orders").addEventListener("click", function () {
+        userLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Список ваших заявок: пусто (демо).`;
+        appState.userLog = userLog.textContent;
+        persistLocalStorage();
+      });
+      document.getElementById("admin-add-user").addEventListener("click", function () {
+        adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Демо: открыто окно «Добавить пользователя».`;
+        appState.adminLog = adminLog.textContent;
+        persistLocalStorage();
+      });
+      document.getElementById("admin-settings").addEventListener("click", function () {
+        adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Демо: раздел настроек системы.`;
+        appState.adminLog = adminLog.textContent;
+        persistLocalStorage();
+      });
+      document.getElementById("admin-clear-sessions").addEventListener("click", function () {
+        adminLog.textContent = `[${new Date().toLocaleTimeString("ru-RU")}] Демо: сессии сброшены (имитация).`;
+        appState.adminLog = adminLog.textContent;
+        persistLocalStorage();
+      });
+
+      initDynamicUsers();
+      // восстановление appState и возможный импорт
+      const embeddedFull = getEmbeddedState();
+      if (embeddedFull && embeddedFull.dynamicUsers) {
+        try {
+          dynamicUsers = embeddedFull.dynamicUsers;
+          persistDynamicUsers();
+        } catch(e) {}
+      }
+      // Если нет сессии, показываем логин
+      showLogin();
+    })();
+  </script>
+</body>
+</html>
